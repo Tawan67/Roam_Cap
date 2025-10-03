@@ -25,6 +25,8 @@ class Player:
         self.frame_timer = 0
         self.past_move_x_status = 0
         self.past_move_y_status = -1 #make default is original pic(หันหน้า)
+        self.jump_pressed = False
+        self.double_jump = False
        
         # Load images
         self.original_image = pygame.image.load("Pic/herta_sama_ver2.1.png").convert_alpha()
@@ -48,12 +50,28 @@ class Player:
             self.width,
             self.height
         )
+        self.jump_cooldown = 0
     def handle_input(self, keys, dt):
         move_dir = pygame.Vector2(0, 0) #x is 1 if pressed d and -1 if pressed a ,y is the same
-        if keys[pygame.K_w]: 
-            move_dir.y -= 1
+        # if self.jump_cooldown > 0:
+        #     self.jump_cooldown -= dt
+        if keys[pygame.K_SPACE] and self.double_jump:
+            self.vel_y = -500
+            self.double_jump = False 
+        if keys[pygame.K_w] and not keys[pygame.K_SPACE]: 
+            # move_dir.y -= 1
             self.past_move_x_status = move_dir.x
             self.past_move_y_status = move_dir.y
+            if self.vel_y == 0 and self.jump_pressed:
+                self.vel_y = -500
+                self.jump_pressed = False
+                self.double_jump = True
+            
+        else:
+            self.jump_pressed = True
+        if self.vel_y == 0:
+            self.double_jump = False
+          
             # print("w",move_dir.y,move_dir.x)
         if keys[pygame.K_s]:
             move_dir.y += 1
@@ -88,7 +106,7 @@ class Player:
         elif move_dir.y < 0:
             self.facing_up = False
 
-    def update(self, dt,platforms):
+    def update(self, dt,platforms,screen_height):
         self.vel_y += self.gravity * dt
         self.pos.y += self.vel_y * dt
 
@@ -120,6 +138,12 @@ class Player:
             # ยังตกต่อไป
             pass
        
+        player_bottom = self.pos.y + self.height // 2
+        if player_bottom > screen_height:
+            self.pos.y = (screen_height// 2)
+            self.pos.x = 1280-((1280*3)//4)
+           
+            self.vel_y = 0
         if self.moving:
             self.frame_timer += dt
             if self.frame_timer >= self.frame_duration:
@@ -127,6 +151,8 @@ class Player:
                 self.current_frame = (self.current_frame + 1) % len(self.walk_frames)
         else:
             self.current_frame = 0
+        
+
 
     def draw(self, surface):
         if self.moving:
@@ -144,7 +170,7 @@ class Player:
         frame_rect = frame_image.get_rect(center=(self.pos.x, self.pos.y))
         surface.blit(frame_image, frame_rect)
         
-        draw_hitbox(self.hitbox, surface, color=(255, 0, 0))
+        # draw_hitbox(self.hitbox, surface, color=(255, 0, 0))
     # def set_start_position(self):
     #      player = Player((screen.get_width() / 4, screen.get_height() / 2), scale=0.1, speed=300) #set start
         
@@ -161,7 +187,8 @@ background_display = "purple"
 def main():
     
     pygame.init()
-    screen = pygame.display.set_mode((1280, 720))
+    screen_height = 720
+    screen = pygame.display.set_mode((1280, screen_height))
     pygame.display.set_caption("GuruGuru Walking")
     clock = pygame.time.Clock()
     font = pygame.font.SysFont(None, 48)
@@ -213,7 +240,7 @@ def main():
 
         keys = pygame.key.get_pressed()
         player.handle_input(keys, dt)
-        player.update(dt,platforms)
+        player.update(dt,platforms,screen_height)
         player.draw(screen)
 
         if keys[pygame.K_SPACE]:
